@@ -1,1 +1,0 @@
-﻿from fastapi.testclient import TestClient\nfrom main import app\nclient = TestClient(app)\nresp = client.post('/chat', json={'message':'hello','session_id':None})\nprint(resp.status_code)\nprint(resp.text)
