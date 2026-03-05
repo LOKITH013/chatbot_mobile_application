@@ -1,7 +1,10 @@
 // src/api/timesheetApi.ts
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { triggerSessionExpired } from '../auth/sessionExpired';
+
+const SESSION_KEY = 'session';
 
 /* ================================
    AXIOS INSTANCE
@@ -18,16 +21,85 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use(async config => {
-  const sessionStr = await AsyncStorage.getItem('session');
+/* ================================
+   REQUEST INTERCEPTOR – attach access token
+================================ */
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  const sessionStr = await AsyncStorage.getItem(SESSION_KEY);
   if (sessionStr) {
-    const session = JSON.parse(sessionStr);
-    if (session.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`;
+    try {
+      const session = JSON.parse(sessionStr);
+      if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    } catch {
+      // ignore invalid session
     }
   }
   return config;
 });
+
+/* ================================
+   REFRESH TOKEN – single in-flight request
+================================ */
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const sessionStr = await AsyncStorage.getItem(SESSION_KEY);
+      if (!sessionStr) return null;
+      const session = JSON.parse(sessionStr);
+      const refreshToken = session?.refresh_token;
+      if (!refreshToken) return null;
+
+      // Expects POST /auth/refresh with { refresh_token } and returns { access_token, refresh_token? }
+      const res = await axios.post(
+        `${API_BASE_URL}/auth/refresh`,
+        { refresh_token: refreshToken },
+        { headers: { 'Content-Type': 'application/json' } },
+      );
+      const data = res.data as { access_token?: string; access?: string; refresh_token?: string; refresh?: string };
+      const newAccess = data?.access_token ?? data?.access;
+      const newRefresh = data?.refresh_token ?? data?.refresh ?? refreshToken;
+
+      const updated = { ...session, access_token: newAccess, refresh_token: newRefresh };
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+      return newAccess;
+    } catch {
+      await AsyncStorage.removeItem(SESSION_KEY);
+      triggerSessionExpired();
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
+/* ================================
+   RESPONSE INTERCEPTOR – 401 → refresh and retry
+================================ */
+api.interceptors.response.use(
+  response => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    if (error.response?.status !== 401 || originalRequest._retry) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      return api(originalRequest);
+    }
+
+    return Promise.reject(error);
+  },
+);
 
 /* ================================
    TYPES

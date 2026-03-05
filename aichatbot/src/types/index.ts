@@ -19,6 +19,13 @@ export type Profile = {
   employee_name?: string;
 };
 
+/** Session from login API – stored in AsyncStorage as 'session' */
+export type AuthSession = {
+  access_token: string;
+  refresh_token: string;
+  [key: string]: unknown;
+};
+
 export type TabKey = 'entryView' | 'history';
 
 export type RootStackParamList = {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../../../navigation/RootNavigator';
 import styles from './SettingsScreenStyles';
 
@@ -10,8 +11,8 @@ const SettingsScreen: React.FC<Props> = ({ navigation, route }) => {
   const email = route.params?.email ?? 'user@example.com';
   const subscription = route.params?.subscription ?? 'Free';
 
-  const handleLogout = () => {
-    // you can also clear AsyncStorage session here if you like
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('session');
     navigation.reset({
       index: 0,
       routes: [{ name: 'Login' }],
