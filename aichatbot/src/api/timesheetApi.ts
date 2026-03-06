@@ -102,6 +102,21 @@ api.interceptors.response.use(
 );
 
 /* ================================
+   LOGIN (no auth header – plain axios)
+================================ */
+export async function login(userId: string, password: string): Promise<unknown> {
+  const res = await axios.post(
+    `${API_BASE_URL}/auth/login`,
+    { user_id: userId, password },
+    {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 15000,
+    },
+  );
+  return res.data;
+}
+
+/* ================================
    TYPES
 ================================ */
 export type ChatResponse = {
