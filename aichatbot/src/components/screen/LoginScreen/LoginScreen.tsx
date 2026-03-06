@@ -13,9 +13,10 @@ const API_BASE_URL =
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
+const USER_ID_LABEL = 'User ID';
+
 export default function LoginScreen({ navigation }: Props) {
-  const [employeeId, setEmployeeId] = useState('');
-  const [email, setEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
@@ -23,8 +24,9 @@ export default function LoginScreen({ navigation }: Props) {
   const handleLogin = async () => {
     setError('');
 
-    if (!employeeId.trim() || !email.trim() || !password) {
-      setError('Employee ID, Email and Password are required');
+    const userIdTrimmed = userId.trim();
+    if (!userIdTrimmed || !password) {
+      setError('Enter User ID and Password');
       return;
     }
 
@@ -33,8 +35,7 @@ export default function LoginScreen({ navigation }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          employee_id: employeeId.trim(),
-          email: email.trim(),
+          user_id: userIdTrimmed,
           password,
         }),
       });
@@ -64,21 +65,15 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <AuthContainer title="Company Portal" subtitle="Employee Login">
-      <Text style={styles.inputLabel}>Employee ID</Text>
+      <Text style={styles.inputLabel}>{USER_ID_LABEL}</Text>
       <TextInput
         style={styles.input}
-        value={employeeId}
-        onChangeText={setEmployeeId}
-        autoCapitalize="characters"
-      />
-
-      <Text style={styles.inputLabel}>Email</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
+        value={userId}
+        onChangeText={setUserId}
+        placeholder={USER_ID_LABEL}
+        placeholderTextColor="#9CA3AF"
         autoCapitalize="none"
-        keyboardType="email-address"
+        autoComplete="username"
       />
 
       <Text style={styles.inputLabel}>Password</Text>
